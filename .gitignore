@@ -1,0 +1,2 @@
+# the real secret must never go to Git
+secrets/secret.yml
