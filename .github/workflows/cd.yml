@@ -1,0 +1,47 @@
+# CD: runs on the self-hosted runner installed on your minikube server.
+# Triggers when files in k8s/ change on main (the CI pipeline does this by
+# updating the image tag), or when you click "Run workflow" manually.
+name: CD - deploy to minikube
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "k8s/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Get deployment files
+        uses: actions/checkout@v4
+
+      - name: Check cluster is reachable
+        run: kubectl get nodes
+
+      - name: Create namespace
+        run: kubectl apply -f k8s/00-namespace.yml
+
+      - name: Create or update the database secret
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          kubectl create secret generic notes-secret -n notes-dev \
+            --from-literal=DB_PASSWORD="$DB_PASSWORD" \
+            --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply Kubernetes files
+        run: kubectl apply -f k8s/
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deploy/db -n notes-dev --timeout=180s
+          kubectl rollout status deploy/notes-app -n notes-dev --timeout=180s
+
+      - name: Show result
+        run: |
+          kubectl get pods -n notes-dev
+          kubectl get deploy notes-app -n notes-dev -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+
