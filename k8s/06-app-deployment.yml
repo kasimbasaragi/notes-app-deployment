@@ -16,7 +16,7 @@ spec:
       containers:
         - name: flask
           # CHANGE: your Docker Hub username, and the version tag you pushed
-          image: kasimbasaragi/notes-app:1.1
+          image: kasimbasaragi/notes-app:1.2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
